@@ -1,3 +1,6 @@
+#!/usr/bin/env python
+# Tommy Bozeman (tboz203)
+
 import array
 import struct
 if struct.pack("H",1) == "\x00\x01": # big endian
