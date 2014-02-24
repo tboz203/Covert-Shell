@@ -26,7 +26,7 @@ def deconstruct(data):
     output.code = ord(icmp_header[1])
     output.cksum = b2hex(icmp_header[2:4])
     output.head_data = icmp_header[4:8]
-    output.payload = icmp_header[8:]
+    output.load = icmp_header[8:]
     output.echop = (output.type in (0, 8) and output.code == 0)
 
     if output.echop:
@@ -50,41 +50,53 @@ def deconstruct(data):
 
     return output
 
+def get_one():
+    sock = socket.socket(socket.AF_INET, socket.SOCK_RAW, socket.IPPROTO_ICMP)
+    sock.bind(('', 1))
 
-# Open a raw socket listening on all ip addresses
-sock = socket.socket(socket.AF_INET, socket.SOCK_RAW, socket.IPPROTO_ICMP)
-sock.bind(('', 1))
-
-try:
     while True:
-        # receive data
         data = sock.recv(1024)
-
-        # # ip header is the first 20 bytes
-        # ip_header = data[:20]
-
-        # # ip source address is 4 bytes and is second last field (dest addr is last)
-        # ips = ip_header[-8:-4]
-
-        # # convert to dotted decimal format
-        # source = '%i.%i.%i.%i' % (ord(ips[0]), ord(ips[1]), ord(ips[2]), ord(ips[3]))
-
-        # print('Ping from %s' % source)
-
         packet = deconstruct(data)
-
-        print('src = ' + packet.srcstr, end=', ')
-        print('dst = ' + packet.dststr, end=', ')
-
         if packet.echop:
-            if packet.reqp:
-                print('echo request', end=', ')
-            else:
-                print('echo reply', end=', ')
-            print('id = ' + packet.id, end=', ')
-            print('seq = ' + packet.seq, end=', ')
+            return packet
 
+
+
+if __name__ == '__main__':
+    # Open a raw socket listening on all ip addresses
+    sock = socket.socket(socket.AF_INET, socket.SOCK_RAW, socket.IPPROTO_ICMP)
+    sock.bind(('', 1))
+
+    try:
+        while True:
+            # receive data
+            data = sock.recv(1024)
+
+            # # ip header is the first 20 bytes
+            # ip_header = data[:20]
+
+            # # ip source address is 4 bytes and is second last field (dest addr is last)
+            # ips = ip_header[-8:-4]
+
+            # # convert to dotted decimal format
+            # source = '%i.%i.%i.%i' % (ord(ips[0]), ord(ips[1]), ord(ips[2]), ord(ips[3]))
+
+            # print('Ping from %s' % source)
+
+            packet = deconstruct(data)
+
+            print('src = ' + packet.srcstr, end=', ')
+            print('dst = ' + packet.dststr, end=', ')
+
+            if packet.echop:
+                if packet.reqp:
+                    print('echo request', end=', ')
+                else:
+                    print('echo reply', end=', ')
+                print('id = ' + packet.id, end=', ')
+                print('seq = ' + packet.seq, end=', ')
+
+            print()
+
+    except KeyboardInterrupt :
         print()
-
-except KeyboardInterrupt :
-    print()

